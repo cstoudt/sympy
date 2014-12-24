@@ -90,7 +90,7 @@ class ExpBase(Function):
         if s.func == self.func:
             if s.exp is S.Zero:
                 return True
-            elif s.exp.is_rational:
+            elif s.exp.is_rational and s.exp.is_nonzero:
                 return False
         else:
             return s.is_rational
@@ -579,7 +579,7 @@ class log(Function):
                 else:
                     nonpos.append(x)
             return Add(*expr) + log(Mul(*nonpos))
-        elif arg.is_Pow:
+        elif arg.is_Pow or isinstance(arg, exp):
             if force or (arg.exp.is_real and arg.base.is_positive) or \
                     arg.base.is_polar:
                 b = arg.base
@@ -638,7 +638,7 @@ class log(Function):
         if s.func == self.func:
             if (self.args[0] - 1).is_zero:
                 return True
-            if s.args[0].is_rational:
+            if s.args[0].is_rational and (self.args[0] - 1).is_nonzero:
                 return False
         else:
             return s.is_rational

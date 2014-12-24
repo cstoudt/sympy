@@ -2,6 +2,7 @@ from __future__ import print_function, division
 
 from sympy.core import S, C, sympify
 from sympy.core.function import Function, ArgumentIndexError
+from sympy.core.logic import fuzzy_and
 from sympy.ntheory import sieve
 from math import sqrt as _sqrt
 
@@ -164,10 +165,11 @@ class factorial(CombinatorialFunction):
         return C.gamma(n + 1)
 
     def _eval_is_integer(self):
-        return self.args[0].is_integer
+        if self.args[0].is_integer:
+            return True
 
     def _eval_is_positive(self):
-        if self.args[0].is_integer and self.args[0].is_positive:
+        if self.args[0].is_integer and self.args[0].is_nonnegative:
             return True
 
 
@@ -227,6 +229,10 @@ class subfactorial(CombinatorialFunction):
             if sympify(arg).is_Number:
                 raise ValueError("argument must be a nonnegative integer")
 
+    def _eval_is_integer(self):
+        return fuzzy_and((self.args[0].is_integer,
+                          self.args[0].is_nonnegative))
+
 
 class factorial2(CombinatorialFunction):
     """The double factorial n!!, not to be confused with (n!)!
@@ -264,6 +270,14 @@ class factorial2(CombinatorialFunction):
             if arg == S.Zero or arg == S.NegativeOne:
                 return S.One
             return factorial2(arg - 2)*arg
+
+    def _eval_is_integer(self):
+        return fuzzy_and((self.args[0].is_integer,
+                          (self.args[0] + 1).is_nonnegative))
+
+    def _eval_is_positive(self):
+        return fuzzy_and((self.args[0].is_integer,
+                          (self.args[0] + 1).is_nonnegative))
 
 
 ###############################################################################
@@ -339,6 +353,10 @@ class RisingFactorial(CombinatorialFunction):
     def _eval_rewrite_as_gamma(self, x, k):
         return C.gamma(x + k) / C.gamma(x)
 
+    def _eval_is_integer(self):
+        return fuzzy_and((self.args[0].is_integer, self.args[1].is_integer,
+                          self.args[1].is_nonnegative))
+
 
 class FallingFactorial(CombinatorialFunction):
     """Falling factorial (related to rising factorial) is a double valued
@@ -402,6 +420,11 @@ class FallingFactorial(CombinatorialFunction):
 
     def _eval_rewrite_as_gamma(self, x, k):
         return (-1)**k * C.gamma(-x + k) / C.gamma(-x)
+
+    def _eval_is_integer(self):
+        return fuzzy_and((self.args[0].is_integer, self.args[1].is_integer,
+                          self.args[1].is_nonnegative))
+
 
 rf = RisingFactorial
 ff = FallingFactorial

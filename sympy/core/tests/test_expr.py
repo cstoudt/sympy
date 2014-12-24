@@ -6,7 +6,7 @@ from sympy import (Add, Basic, S, Symbol, Wild, Float, Integer, Rational, I,
     Piecewise, Mul, Pow, nsimplify, ratsimp, trigsimp, radsimp, powsimp,
     simplify, together, collect, factorial, apart, combsimp, factor, refine,
     cancel, Tuple, default_sort_key, DiracDelta, gamma, Dummy, Sum, E,
-    exp_polar, Lambda, expand, diff, O, Heaviside)
+    exp_polar, Lambda, expand, diff, O, Heaviside, Si)
 from sympy.core.function import AppliedUndef
 from sympy.physics.secondquant import FockState
 from sympy.physics.units import meter
@@ -928,16 +928,21 @@ def test_as_coeff_mul():
     assert S(2).as_coeff_mul() == (2, ())
     assert S(3.0).as_coeff_mul() == (1, (S(3.0),))
     assert S(-3.0).as_coeff_mul() == (-1, (S(3.0),))
+    assert S(-3.0).as_coeff_mul(rational=False) == (-S(3.0), ())
     assert x.as_coeff_mul() == (1, (x,))
     assert (-x).as_coeff_mul() == (-1, (x,))
     assert (2*x).as_coeff_mul() == (2, (x,))
     assert (x*y).as_coeff_mul(y) == (x, (y,))
+    assert (3 + x).as_coeff_mul() == (1, (3 + x,))
     assert (3 + x).as_coeff_mul(y) == (3 + x, ())
     # don't do expansion
     e = exp(x + y)
     assert e.as_coeff_mul(y) == (1, (e,))
     e = 2**(x + y)
     assert e.as_coeff_mul(y) == (1, (e,))
+    assert (1.1*x).as_coeff_mul(rational=False) == (1.1, (x,))
+    assert (1.1*x).as_coeff_mul() == (1, (1.1, x))
+    assert (-oo*x).as_coeff_mul(rational=True) == (-1, (oo, x))
 
 
 def test_as_coeff_exponent():
@@ -1260,6 +1265,7 @@ def test_as_coeff_Mul():
 
     assert (x).as_coeff_Mul() == (S.One, x)
     assert (x*y).as_coeff_Mul() == (S.One, x*y)
+    assert (-oo*x).as_coeff_Mul(rational=True) == (-1, oo*x)
 
 
 def test_as_coeff_Add():
@@ -1392,6 +1398,9 @@ def test_issue_4199():
     assert a._eval_interval(x, -oo, oo) == -y
     assert a._eval_interval(x, oo, -oo) == y
 
+def test_eval_interval_zoo():
+    # Test that limit is used when zoo is returned
+    assert Si(1/x)._eval_interval(x, 0, 1) == -pi/2 + Si(1)
 
 def test_primitive():
     assert (3*(x + 1)**2).primitive() == (3, (x + 1)**2)

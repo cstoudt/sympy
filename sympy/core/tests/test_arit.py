@@ -895,7 +895,9 @@ def test_Pow_is_integer():
     m = Symbol('m', integer=True, positive=True)
 
     assert (k**2).is_integer is True
-    assert (k**(-2)).is_integer is False
+    assert (k**(-2)).is_integer is None
+    assert ((m + 1)**(-2)).is_integer is False
+    assert (m**(-1)).is_integer is None  # issue 8580
 
     assert (2**k).is_integer is None
     assert (2**(-k)).is_integer is None
@@ -931,6 +933,9 @@ def test_Pow_is_integer():
     assert Pow(S.Half, -2, evaluate=False).is_integer is True
 
     assert ((-1)**k).is_integer
+
+    x = Symbol('x', real=True, integer=False)
+    assert (x**2).is_integer is None  # issue 8641
 
 
 def test_Pow_is_real():
@@ -1538,6 +1543,26 @@ def test_Mod():
     i = Symbol('i', integer=True)
     assert (3*i*x) % (2*i*y) == i*Mod(3*x, 2*y)
     assert Mod(4*i, 4) == 0
+
+
+def test_Mod_is_integer():
+    p = Symbol('p', integer=True)
+    q1 = Symbol('q1', integer=True)
+    q2 = Symbol('q2', integer=True, nonzero=True)
+    assert Mod(x, y).is_integer is None
+    assert Mod(p, q1).is_integer is None
+    assert Mod(x, q2).is_integer is None
+    assert Mod(p, q2).is_integer
+
+
+def test_Mod_is_nonposneg():
+    n = Symbol('n', integer=True)
+    k = Symbol('k', integer=True, positive=True)
+    assert (n%3).is_nonnegative
+    assert Mod(n, -3).is_nonpositive
+    assert Mod(n, k).is_nonnegative
+    assert Mod(n, -k).is_nonpositive
+    assert Mod(k, n).is_nonnegative is None
 
 
 def test_issue_6001():

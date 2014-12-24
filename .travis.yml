@@ -67,6 +67,12 @@ matrix:
         - TEST_AUTOWRAP="true"
       virtualenv:
         system_site_packages: true
+    - python: 2.7
+      env:
+        - TEST_ASCII="true"
+    - python: 3.4
+      env:
+        - TEST_ASCII="true"
   allow_failures:
     - python: 3.3 # Dummy value
       env:
@@ -116,8 +122,8 @@ install:
     fi
 script:
   - bin/test_travis.sh
-  - if [[ "${TEST_SPHINX}" == "true" ]]; then
-      bin/deploy_doc.sh;
-    fi
+#  - if [[ "${TEST_SPHINX}" == "true" ]]; then
+#      bin/deploy_doc.sh;
+#    fi
 notifications:
   email: false

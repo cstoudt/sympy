@@ -170,7 +170,7 @@ class sinh(HyperbolicFunction):
         arg = self.args[0].as_leading_term(x)
 
         if x in arg.free_symbols and C.Order(1, x).contains(arg):
-            return S.One
+            return arg
         else:
             return self.func(arg)
 
@@ -455,7 +455,7 @@ class tanh(HyperbolicFunction):
         arg = self.args[0].as_leading_term(x)
 
         if x in arg.free_symbols and C.Order(1, x).contains(arg):
-            return S.One
+            return arg
         else:
             return self.func(arg)
 
@@ -587,13 +587,173 @@ class coth(HyperbolicFunction):
         arg = self.args[0].as_leading_term(x)
 
         if x in arg.free_symbols and C.Order(1, x).contains(arg):
-            return S.One
+            return 1/arg
         else:
             return self.func(arg)
 
     def _sage_(self):
         import sage.all as sage
         return sage.coth(self.args[0]._sage_())
+
+
+class ReciprocalHyperbolicFunction(HyperbolicFunction):
+    """Base class for reciprocal functions of hyperbolic functions. """
+
+    #To be defined in class
+    _reciprocal_of = None
+    _is_even = None
+    _is_odd = None
+
+    @classmethod
+    def eval(cls, arg):
+        if arg.could_extract_minus_sign():
+            if cls._is_even:
+                return cls(-arg)
+            if cls._is_odd:
+                return -cls(-arg)
+
+        t = cls._reciprocal_of.eval(arg)
+        if hasattr(arg, 'inverse') and arg.inverse() == cls:
+            return arg.args[0]
+        return 1/t if t != None else t
+
+    def _call_reciprocal(self, method_name, *args, **kwargs):
+        # Calls method_name on _reciprocal_of
+        o = self._reciprocal_of(self.args[0])
+        return getattr(o, method_name)(*args, **kwargs)
+
+    def _calculate_reciprocal(self, method_name, *args, **kwargs):
+        # If calling method_name on _reciprocal_of returns a value != None
+        # then return the reciprocal of that value
+        t = self._call_reciprocal(method_name, *args, **kwargs)
+        return 1/t if t != None else t
+
+    def _rewrite_reciprocal(self, method_name, arg):
+        # Special handling for rewrite functions. If reciprocal rewrite returns
+        # unmodified expression, then return None
+        t = self._call_reciprocal(method_name, arg)
+        if t != None and t != self._reciprocal_of(arg):
+            return 1/t
+
+    def _eval_rewrite_as_exp(self, arg):
+        return self._rewrite_reciprocal("_eval_rewrite_as_exp", arg)
+
+    def _eval_rewrite_as_tractable(self, arg):
+        return self._rewrite_reciprocal("_eval_rewrite_as_tractable", arg)
+
+    def _eval_rewrite_as_tanh(self, arg):
+        return self._rewrite_reciprocal("_eval_rewrite_as_tanh", arg)
+
+    def _eval_rewrite_as_coth(self, arg):
+        return self._rewrite_reciprocal("_eval_rewrite_as_coth", arg)
+
+    def as_real_imag(self, deep = True, **hints):
+        return (1 / self._reciprocal_of(self.args[0])).as_real_imag(deep, **hints)
+
+    def _eval_conjugate(self):
+        return self.func(self.args[0].conjugate())
+
+    def _eval_expand_complex(self, deep=True, **hints):
+        re_part, im_part = self.as_real_imag(deep=True, **hints)
+        return re_part + S.ImaginaryUnit*im_part
+
+    def _eval_as_leading_term(self, x):
+        return (1/self._reciprocal_of(self.args[0]))._eval_as_leading_term(x)
+
+    def _eval_is_real(self):
+        return self._reciprocal_of(args[0]).is_real
+
+    def _eval_is_finite(self):
+        return (1/self._reciprocal_of(args[0])).is_finite
+
+
+class csch(ReciprocalHyperbolicFunction):
+    r"""
+    The hyperbolic cosecant function, `\frac{2}{e^x - e^{-x}}`
+
+    * csch(x) -> Returns the hyperbolic cosecant of x
+
+    See Also
+    ========
+
+    sinh, cosh, tanh, sech, asinh, acosh
+    """
+
+    _reciprocal_of = sinh
+    _is_odd = True
+
+    def fdiff(self, argindex=1):
+        """
+        Returns the first derivative of this function
+        """
+        if argindex == 1:
+            return -coth(self.args[0]) * csch(self.args[0])
+        else:
+            raise ArgumentIndexError(self, argindex)
+
+    @staticmethod
+    @cacheit
+    def taylor_term(n, x, *previous_terms):
+        """
+        Returns the next term in the Taylor series expansion
+        """
+        if n == 0:
+            return 1/sympify(x)
+        elif n < 0 or n % 2 == 0:
+            return S.Zero
+        else:
+            x = sympify(x)
+
+            B = C.bernoulli(n + 1)
+            F = C.factorial(n + 1)
+
+            return 2 * (1 - 2**n) * B/F * x**n
+
+    def _eval_rewrite_as_cosh(self, arg):
+        return S.ImaginaryUnit / cosh(arg + S.ImaginaryUnit * S.Pi / 2)
+
+    def _sage_(self):
+        import sage.all as sage
+        return sage.csch(self.args[0]._sage_())
+
+
+class sech(ReciprocalHyperbolicFunction):
+    r"""
+    The hyperbolic secant function, `\frac{2}{e^x + e^{-x}}`
+
+    * sech(x) -> Returns the hyperbolic secant of x
+
+    See Also
+    ========
+
+    sinh, cosh, tanh, coth, csch, asinh, acosh
+    """
+
+    _reciprocal_of = cosh
+    _is_even = True
+
+    def fdiff(self, argindex=1):
+        if argindex == 1:
+            return - tanh(self.args[0])*sech(self.args[0])
+        else:
+            raise ArgumentIndexError(self, argindex)
+
+    @staticmethod
+    @cacheit
+    def taylor_term(n, x, *previous_terms):
+        if n < 0 or n % 2 == 1:
+            return S.Zero
+        else:
+            x = sympify(x)
+            return C.euler(n) / C.factorial(n) * x**(n)
+
+    def _eval_rewrite_as_sinh(self, arg):
+        return S.ImaginaryUnit / sinh(arg + S.ImaginaryUnit * S.Pi /2)
+
+    def _sage_(self):
+        import sage.all as sage
+        return sage.sech(self.args[0]._sage_())
+
 
 
 ###############################################################################
@@ -784,7 +944,7 @@ class acosh(Function):
         arg = self.args[0].as_leading_term(x)
 
         if x in arg.free_symbols and C.Order(1, x).contains(arg):
-            return arg
+            return S.ImaginaryUnit*S.Pi/2
         else:
             return self.func(arg)
 
@@ -935,7 +1095,7 @@ class acoth(Function):
         arg = self.args[0].as_leading_term(x)
 
         if x in arg.free_symbols and C.Order(1, x).contains(arg):
-            return arg
+            return S.ImaginaryUnit*S.Pi/2
         else:
             return self.func(arg)
 

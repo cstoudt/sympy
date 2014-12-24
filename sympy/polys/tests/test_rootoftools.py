@@ -11,7 +11,8 @@ from sympy.polys.polyerrors import (
 )
 
 from sympy import (
-    S, symbols, sqrt, I, Rational, Float, Lambda, log, exp, tan,
+    S, symbols, sqrt, I, Rational, Float, Lambda, log, exp, tan, Function, Eq,
+    solve, legendre_poly
 )
 
 from sympy.utilities.pytest import raises, XFAIL
@@ -89,6 +90,7 @@ def test_RootOf___new__():
     raises(IndexError, lambda: RootOf(x**2 - 1, -3))
     raises(IndexError, lambda: RootOf(x**2 - 1, 2))
     raises(IndexError, lambda: RootOf(x**2 - 1, 3))
+    raises(ValueError, lambda: RootOf(x**2 - 1, x))
 
     assert RootOf(Poly(x - y, x), 0) == y
 
@@ -103,8 +105,10 @@ def test_RootOf___new__():
     assert RootOf(x**3 + x + 1, 0).is_commutative is True
 
 
-def test_RootOf_free_symbols():
-    assert RootOf(x**3 + x + 3, 0).free_symbols == set()
+def test_RootOf_attributes():
+    r = RootOf(x**3 + x + 3, 0)
+    assert r.is_number
+    assert r.free_symbols == set()
     # if the following assertion fails then multivariate polynomials
     # are apparently supported and the RootOf.free_symbols routine
     # should be changed to return whatever symbols would not be
@@ -125,6 +129,28 @@ def test_RootOf___eq__():
     assert (RootOf(x**3 + x + 3, 1) == RootOf(y**3 + y + 3, 1)) is True
     assert (RootOf(x**3 + x + 3, 1) == RootOf(y**3 + y + 3, 2)) is False
     assert (RootOf(x**3 + x + 3, 2) == RootOf(y**3 + y + 3, 2)) is True
+
+
+def test_RootOf___eval_Eq__():
+    f = Function('f')
+    r = RootOf(x**3 + x + 3, 2)
+    r1 = RootOf(x**3 + x + 3, 1)
+    assert Eq(r, r1) is S.false
+    assert Eq(r, r) is S.true
+    assert Eq(r, x) is S.false
+    assert Eq(r, 0) is S.false
+    assert Eq(r, S.Infinity) is S.false
+    assert Eq(r, I) is S.false
+    assert Eq(r, f(0)) is S.false
+    assert Eq(r, f(0)) is S.false
+    sol = solve(r.expr)
+    for s in sol:
+        if s.is_real:
+            assert Eq(r, s) is S.false
+    r = RootOf(r.expr, 0)
+    for s in sol:
+        if s.is_real:
+            assert Eq(r, s) is S.true
 
 
 def test_RootOf_is_real():
@@ -188,6 +214,15 @@ def test_RootOf_evalf():
     re, im = RootOf(x**5 - 5*x + 12, 4).evalf(n=20).as_real_imag()
     assert re.epsilon_eq(Float("+1.272897223922499190910"))
     assert im.epsilon_eq(Float("+0.719798681483861386681"))
+
+    # issue 6393
+    assert str(RootOf(x**5 + 2*x**4 + x**3 - 68719476736, 0).n(3)) == '147.'
+    # issue 6451
+    r = RootOf(legendre_poly(64, x), 7)
+    assert r.n(2) == r.n(100).n(2)
+    # issue 8617
+    ans = [w.n(2) for w in solve(x**3 - x - 4)]
+    assert RootOf(exp(x)**3 - exp(x) - 4, 0).n(2) in ans
 
 
 def test_RootOf_evalf_caching_bug():

@@ -5,7 +5,7 @@ from .assumptions import ManagedProperties
 from .cache import cacheit
 from .core import BasicType, C
 from .sympify import _sympify, sympify, SympifyError
-from .compatibility import (reduce, iterable, Iterator, ordered,
+from .compatibility import (iterable, Iterator, ordered,
     string_types, with_metaclass, zip_longest)
 from .decorators import deprecated
 from .singleton import S
@@ -309,10 +309,10 @@ class Basic(with_metaclass(ManagedProperties)):
                 return False
         if type(self) is not type(other):
             # issue 6100 a**1.0 == a like a**2.0 == a**2
-            while isinstance(self, C.Pow) and self.exp == 1:
-                self = self.base
-            while isinstance(other, C.Pow) and other.exp == 1:
-                other = other.base
+            if isinstance(self, C.Pow) and self.exp == 1:
+                return self.base == other
+            if isinstance(other, C.Pow) and other.exp == 1:
+                return self == other.base
             try:
                 other = _sympify(other)
             except SympifyError:
@@ -491,7 +491,7 @@ class Basic(with_metaclass(ManagedProperties)):
 
         Any other method that uses bound variables should implement a symbols
         method."""
-        return reduce(set.union, [a.free_symbols for a in self.args], set())
+        return set().union(*[a.free_symbols for a in self.args])
 
     @property
     def canonical_variables(self):

@@ -2063,7 +2063,7 @@ class Poly(Expr):
 
         return f.rep.dom.to_sympy(result)
 
-    def clear_denoms(f, convert=False):
+    def clear_denoms(self, convert=False):
         """
         Clear denominators, but keep the ground domain.
 
@@ -2081,6 +2081,8 @@ class Poly(Expr):
         (6, Poly(3*x + 2, x, domain='ZZ'))
 
         """
+        f = self
+
         if not f.rep.dom.has_Field:
             return S.One, f
 
@@ -2100,7 +2102,7 @@ class Poly(Expr):
         else:
             return coeff, f.to_ring()
 
-    def rat_clear_denoms(f, g):
+    def rat_clear_denoms(self, g):
         """
         Clear denominators in a rational function ``f/g``.
 
@@ -2121,6 +2123,8 @@ class Poly(Expr):
         Poly(y*x**3 + y**2, x, domain='ZZ[y]')
 
         """
+        f = self
+
         dom, per, f, g = f._unify(g)
 
         f = per(f)
@@ -2137,7 +2141,7 @@ class Poly(Expr):
 
         return f, g
 
-    def integrate(f, *specs, **args):
+    def integrate(self, *specs, **args):
         """
         Computes indefinite integral of ``f``.
 
@@ -2154,6 +2158,8 @@ class Poly(Expr):
         Poly(1/2*x**2*y**2 + 1/2*x**2, x, y, domain='QQ')
 
         """
+        f = self
+
         if args.get('auto', True) and f.rep.dom.has_Ring:
             f = f.to_field()
 
@@ -2210,7 +2216,7 @@ class Poly(Expr):
         else:  # pragma: no cover
             raise OperationNotSupported(f, 'diff')
 
-    def eval(f, x, a=None, auto=True):
+    def eval(self, x, a=None, auto=True):
         """
         Evaluate ``f`` at ``a`` in the given variable.
 
@@ -2241,6 +2247,8 @@ class Poly(Expr):
         Poly(2*z + 31, z, domain='ZZ')
 
         """
+        f = self
+
         if a is None:
             if isinstance(x, dict):
                 mapping = x
@@ -2740,7 +2748,7 @@ class Poly(Expr):
 
         return f.per(result)
 
-    def monic(f, auto=True):
+    def monic(self, auto=True):
         """
         Divides all coefficients by ``LC(f)``.
 
@@ -2757,6 +2765,8 @@ class Poly(Expr):
         Poly(x**2 + 4/3*x + 2/3, x, domain='QQ')
 
         """
+        f = self
+
         if auto and f.rep.dom.has_Ring:
             f = f.to_field()
 
@@ -2874,7 +2884,7 @@ class Poly(Expr):
 
         return f.per(result)
 
-    def sturm(f, auto=True):
+    def sturm(self, auto=True):
         """
         Computes the Sturm sequence of ``f``.
 
@@ -2891,6 +2901,8 @@ class Poly(Expr):
          Poly(-2079/4, x, domain='QQ')]
 
         """
+        f = self
+
         if auto and f.rep.dom.has_Ring:
             f = f.to_field()
 
@@ -3934,8 +3946,10 @@ class Poly(Expr):
     __truediv__ = __div__
     __rtruediv__ = __rdiv__
 
-    @_sympifyit('g', NotImplemented)
-    def __eq__(f, g):
+    @_sympifyit('other', NotImplemented)
+    def __eq__(self, other):
+        f, g = self, other
+
         if not g.is_Poly:
             try:
                 g = f.__class__(g, f.gens, domain=f.get_domain())
@@ -4010,8 +4024,10 @@ class PurePoly(Poly):
         """
         return self.free_symbols_in_domain
 
-    @_sympifyit('g', NotImplemented)
-    def __eq__(f, g):
+    @_sympifyit('other', NotImplemented)
+    def __eq__(self, other):
+        f, g = self, other
+
         if not g.is_Poly:
             try:
                 g = f.__class__(g, f.gens, domain=f.get_domain())
@@ -5724,7 +5740,7 @@ def to_rational_coeffs(f):
     """
     from sympy.simplify.simplify import simplify
 
-    def _try_rescale(f):
+    def _try_rescale(f, f1=None):
         """
         try rescaling ``x -> alpha*x`` to convert f to a polynomial
         with rational coefficients.
@@ -5737,9 +5753,10 @@ def to_rational_coeffs(f):
             return None, f
         n = f.degree()
         lc = f.LC()
-        coeffs = f.monic().all_coeffs()[1:]
+        f1 = f1 or f1.monic()
+        coeffs = f1.all_coeffs()[1:]
         coeffs = [simplify(coeffx) for coeffx in coeffs]
-        if coeffs[-2] and not all(coeffx.is_rational for coeffx in coeffs):
+        if coeffs[-2]:
             rescale1_x = simplify(coeffs[-2]/coeffs[-1])
             coeffs1 = []
             for i in range(len(coeffs)):
@@ -5758,7 +5775,7 @@ def to_rational_coeffs(f):
                 return lc, rescale_x, f
         return None
 
-    def _try_translate(f):
+    def _try_translate(f, f1=None):
         """
         try translating ``x -> x + alpha`` to convert f to a polynomial
         with rational coefficients.
@@ -5770,7 +5787,7 @@ def to_rational_coeffs(f):
         if not len(f.gens) == 1 or not (f.gens[0]).is_Atom:
             return None, f
         n = f.degree()
-        f1 = f.monic()
+        f1 = f1 or f1.monic()
         coeffs = f1.all_coeffs()[1:]
         c = simplify(coeffs[0])
         if c and not c.is_rational:
@@ -5797,7 +5814,8 @@ def to_rational_coeffs(f):
         for y in coeffs:
             for x in Add.make_args(y):
                 f = Factors(x).factors
-                r = [wx.q for wx in f.values() if wx.is_Rational and wx.q >= 2]
+                r = [wx.q for b, wx in f.items() if
+                    b.is_number and wx.is_Rational and wx.q >= 2]
                 if not r:
                     continue
                 if min(r) == 2:
@@ -5807,11 +5825,12 @@ def to_rational_coeffs(f):
         return has_sq
 
     if f.get_domain().is_EX and _has_square_roots(f):
-        r = _try_rescale(f)
+        f1 = f.monic()
+        r = _try_rescale(f, f1)
         if r:
             return r[0], r[1], None, r[2]
         else:
-            r = _try_translate(f)
+            r = _try_translate(f, f1)
             if r:
                 return None, None, r[0], r[1]
     return None

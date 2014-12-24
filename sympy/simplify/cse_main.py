@@ -326,7 +326,7 @@ def tree_cse(exprs, symbols, opt_subs=None, order='canonical'):
 
     def _rebuild(expr):
 
-        if expr.is_Atom:
+        if not expr.args:
             return expr
 
         if iterable(expr):
@@ -437,7 +437,7 @@ def cse(exprs, symbols=None, optimizations=None, postprocess=None,
     # Preprocess the expressions to give us better optimization opportunities.
     reduced_exprs = [preprocess_for_cse(e, optimizations) for e in exprs]
 
-    excluded_symbols = set.union(*[expr.atoms(Symbol)
+    excluded_symbols = set().union(*[expr.atoms(Symbol)
                                    for expr in reduced_exprs])
 
     if symbols is None:

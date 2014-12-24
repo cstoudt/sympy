@@ -8,6 +8,7 @@ from sympy.abc import a, b, c, d, f, k, m, x, y, z
 from sympy.concrete.summations import telescopic
 from sympy.utilities.pytest import XFAIL, raises
 from sympy import simplify
+from sympy.core.mod import Mod
 
 n = Symbol('n', integer=True)
 
@@ -101,6 +102,10 @@ def test_karr_convention():
     Sz = Sum(f(i), (i, a, b)).doit()
 
     assert Sz == 0
+
+    e = Piecewise((exp(-i), Mod(i, 2) > 0), (0, True))
+    s = Sum(e, (i, 0, 11))
+    assert s.n(3) == s.doit().n(3)
 
 
 def test_karr_proposition_2a():
@@ -348,6 +353,7 @@ def test_euler_maclaurin():
     check_exact(k**4 + k**2, a, b, 1, 5)
     check_exact(k**5, 2, 6, 1, 2)
     check_exact(k**5, 2, 6, 1, 3)
+    assert Sum(x-1, (x, 0, 2)).euler_maclaurin(m=30, n=30, eps=2**-15) == (0, 0)
     # Not exact
     assert Sum(k**6, (k, a, b)).euler_maclaurin(0, 2)[1] != 0
     # Numerical test
@@ -474,6 +480,7 @@ def test_limit_subs():
             F(a, (a, c, 4))
         assert F(x, (x, 1, x + y)).subs(x, 1) == F(x, (x, 1, y + 1))
 
+
 def test_function_subs():
     f = Function("f")
     S = Sum(x*f(y),(x,0,oo),(y,0,oo))
@@ -485,6 +492,7 @@ def test_function_subs():
     f = Symbol('f')
     S = Sum(x*f(y),(x,0,oo),(y,0,oo))
     assert S.subs(f(y),y) == Sum(x*y,(x,0,oo),(y,0,oo))
+
 
 def test_equality():
     # if this fails remove special handling below
@@ -670,7 +678,7 @@ def test_issue_6274():
 
 
 def test_simplify():
-    y, t = symbols('y, t')
+    y, t, v = symbols('y, t, v')
 
     assert simplify(Sum(x*y, (x, n, m), (y, a, k)) + \
         Sum(y, (x, n, m), (y, a, k))) == Sum(x*y + y, (x, n, m), (y, a, k))
@@ -697,6 +705,11 @@ def test_simplify():
         simplify(Sum(x, (t, a, b)) + Sum(x, (t, b+1, c)) + Sum(x, (t, b+1, c)))
     assert simplify(Sum(x, (x, a, b))*Sum(x**2, (x, a, b))) == \
         Sum(x, (x, a, b)) * Sum(x**2, (x, a, b))
+    assert simplify(Sum(x, (t, a, b)) + Sum(y, (t, a, b)) + Sum(z, (t, a, b))) \
+        == Sum(x + y + z, (t, a, b))          # issue 8596
+    assert simplify(Sum(x, (t, a, b)) + Sum(y, (t, a, b)) + Sum(z, (t, a, b)) + \
+        Sum(v, (t, a, b))) == Sum(x + y + z + v, (t, a, b))  # issue 8596
+
 
 def test_change_index():
     b, v = symbols('b, v', integer = True)
@@ -757,8 +770,10 @@ def test_reverse_order():
     assert Sum(x*y, (x, a, b), (y, 2, 5)).reverse_order(y, x) == \
         Sum(x*y, (x, b + 1, a - 1), (y, 6, 1))
 
+
 def test_issue_7097():
     assert sum(x**n/n for n in range(1, 401)) == summation(x**n/n, (n, 1, 400))
+
 
 def test_factor_expand_subs():
     # test factoring
@@ -801,9 +816,10 @@ def test_issue_2787():
     binomial_dist = binomial(n, k)*p**k*(1 - p)**(n - k)
     s = Sum(binomial_dist*k, (k, 0, n))
     res = s.doit().simplify()
-    assert res == Piecewise((n*p, And(Or(-n + 1 < 0, -n + 1 >= 0),
-        Or(-n + 1 < 0, Ne(p/(p - 1), 1)), p*Abs(1/(p - 1)) <= 1)),
-        (Sum(k*p**k*(-p + 1)**(-k)*(-p + 1)**n*binomial(n, k), (k, 0, n)), True))
+    assert res == Piecewise(
+        (n*p, And(Or(-n + 1 < 0, Ne(p/(p - 1), 1)), p/Abs(p - 1) <= 1)),
+        (Sum(k*p**k*(-p + 1)**(-k)*(-p + 1)**n*binomial(n, k), (k, 0, n)),
+        True))
 
 
 def test_issue_4668():

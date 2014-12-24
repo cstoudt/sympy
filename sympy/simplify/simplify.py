@@ -4,16 +4,17 @@ from collections import defaultdict
 
 from sympy import SYMPY_DEBUG
 
-from sympy.core import (Basic, S, C, Add, Mul, Pow, Rational, Integer,
+from sympy.core import (Basic, S, C, Add, Mul, Pow,
     Derivative, Wild, Symbol, sympify, expand, expand_mul, expand_func,
     Function, Equality, Dummy, Atom, count_ops, Expr, factor_terms,
     expand_multinomial, FunctionClass, expand_power_base, symbols, igcd,
     expand_power_exp, expand_log)
 from sympy.core.add import _unevaluated_Add
 from sympy.core.cache import cacheit
-from sympy.core.compatibility import iterable, reduce, default_sort_key, ordered, xrange
+from sympy.core.compatibility import (iterable, reduce, default_sort_key,
+    ordered, xrange, as_int)
 from sympy.core.exprtools import Factors, gcd_terms
-from sympy.core.numbers import Float, Number, I
+from sympy.core.numbers import Float, Number, I, Rational, Integer
 from sympy.core.function import expand_log, count_ops, _mexpand
 from sympy.core.mul import _keep_coeff, prod
 from sympy.core.rules import Transform
@@ -3854,6 +3855,10 @@ def nsimplify(expr, constants=[], tolerance=None, full=False, rational=None):
     sympy.core.function.nfloat
 
     """
+    try:
+        return sympify(as_int(expr))
+    except (TypeError, ValueError):
+        pass
     expr = sympify(expr)
     if rational or expr.free_symbols:
         return _real_to_rational(expr, tolerance)
@@ -4417,8 +4422,10 @@ def sum_simplify(s):
             if not used[i]:
                 for j, s_term2 in enumerate(s_t):
                     if not used[j] and i != j:
-                        if isinstance(sum_add(s_term1, s_term2, method), Sum):
-                            s_t[i] = sum_add(s_term1, s_term2, method)
+                        temp = sum_add(s_term1, s_term2, method)
+                        if isinstance(temp, Sum):
+                            s_t[i] = temp
+                            s_term1 = s_t[i]
                             used[j] = True
 
     result = Add(*o_t)
@@ -4588,7 +4595,7 @@ def trigsimp_old(expr, **opts):
         if not expr.has(*_trigs):
             return expr
 
-        trigsyms = set.union(*[t.free_symbols for t in expr.atoms(*_trigs)])
+        trigsyms = set().union(*[t.free_symbols for t in expr.atoms(*_trigs)])
         if len(trigsyms) > 1:
             d = separatevars(expr)
             if d.is_Mul:
