@@ -6,12 +6,11 @@ from __future__ import print_function, division
 
 from sympy.core import S, Rational, Pow, Basic, Mul
 from sympy.core.mul import _keep_coeff
-from sympy.core.numbers import Integer
 from .printer import Printer
 from sympy.printing.precedence import precedence, PRECEDENCE
 
-import sympy.mpmath.libmp as mlib
-from sympy.mpmath.libmp import prec_to_dps
+import mpmath.libmp as mlib
+from mpmath.libmp import prec_to_dps
 
 from sympy.utilities import default_sort_key
 
@@ -364,6 +363,9 @@ class StrPrinter(Printer):
     def _print_TensorHead(self, expr):
         return expr._print()
 
+    def _print_Tensor(self, expr):
+        return expr._print()
+
     def _print_TensMul(self, expr):
         return expr._print()
 
@@ -552,6 +554,15 @@ class StrPrinter(Printer):
         return rv
 
     def _print_Relational(self, expr):
+
+        charmap = {
+            "==": "Eq",
+            "!=": "Ne",
+        }
+
+        if expr.rel_op in charmap:
+            return '%s(%s, %s)' % (charmap[expr.rel_op], expr.lhs, expr.rhs)
+
         return '%s %s %s' % (self.parenthesize(expr.lhs, precedence(expr)),
                            self._relationals.get(expr.rel_op) or expr.rel_op,
                            self.parenthesize(expr.rhs, precedence(expr)))
@@ -724,7 +735,7 @@ def sstr(expr, **settings):
     >>> from sympy import symbols, Eq, sstr
     >>> a, b = symbols('a b')
     >>> sstr(Eq(a + b, 0))
-    'a + b == 0'
+    'Eq(a + b, 0)'
     """
 
     p = StrPrinter(settings)

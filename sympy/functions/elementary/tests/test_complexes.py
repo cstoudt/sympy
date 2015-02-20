@@ -1,11 +1,10 @@
 from sympy import (
     Abs, adjoint, arg, atan2, conjugate, cos, DiracDelta, E, exp, expand,
     Expr, Function, Heaviside, I, im, log, nan, oo, pi, Rational, re, S,
-    sign, sin, sqrt, Symbol, symbols, transpose, zoo, exp_polar, Piecewise
+    sign, sin, sqrt, Symbol, symbols, transpose, zoo, exp_polar, Piecewise,
+    Interval, comp
 )
-from sympy.utilities.pytest import XFAIL
-
-from sympy.utilities.randtest import comp
+from sympy.utilities.pytest import XFAIL, raises
 
 
 def N_equals(a, b):
@@ -73,6 +72,13 @@ def test_re():
     assert re(x).rewrite(im) == x - im(x)
     assert (x + re(y)).rewrite(re, im) == x + y - im(y)
 
+    a = Symbol('a', algebraic=True)
+    t = Symbol('t', transcendental=True)
+    x = Symbol('x')
+    assert re(a).is_algebraic
+    assert re(x).is_algebraic is None
+    assert re(t).is_algebraic is False
+
 
 def test_im():
     x, y = symbols('x,y')
@@ -134,6 +140,13 @@ def test_im():
 
     assert im(x).rewrite(re) == x - re(x)
     assert (x + im(y)).rewrite(im, re) == x + y - re(y)
+
+    a = Symbol('a', algebraic=True)
+    t = Symbol('t', transcendental=True)
+    x = Symbol('x')
+    assert re(a).is_algebraic
+    assert re(x).is_algebraic is None
+    assert re(t).is_algebraic is False
 
 
 def test_sign():
@@ -294,6 +307,8 @@ def test_sign_issue_3068():
 
 
 def test_Abs():
+    raises(TypeError, lambda: Abs(Interval(2, 3)))  # issue 8717
+
     x, y = symbols('x,y')
     assert sign(sign(x)) == sign(x)
     assert sign(x*y).func is sign
@@ -354,6 +369,13 @@ def test_Abs():
     assert Abs(-oo) is oo
     assert Abs(oo + I) is oo
     assert Abs(oo + I*oo) is oo
+
+    a = Symbol('a', algebraic=True)
+    t = Symbol('t', transcendental=True)
+    x = Symbol('x')
+    assert re(a).is_algebraic
+    assert re(x).is_algebraic is None
+    assert re(t).is_algebraic is False
 
 
 def test_Abs_rewrite():
@@ -529,6 +551,12 @@ def test_conjugate():
     assert conjugate(x * y) == conjugate(x) * conjugate(y)
     assert conjugate(x / y) == conjugate(x) / conjugate(y)
     assert conjugate(-x) == -conjugate(x)
+
+    a = Symbol('a', algebraic=True)
+    t = Symbol('t', transcendental=True)
+    assert re(a).is_algebraic
+    assert re(x).is_algebraic is None
+    assert re(t).is_algebraic is False
 
 
 def test_conjugate_transpose():

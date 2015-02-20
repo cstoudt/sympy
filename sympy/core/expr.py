@@ -7,8 +7,8 @@ from .singleton import S
 from .evalf import EvalfMixin, pure_complex
 from .decorators import _sympifyit, call_highest_priority
 from .cache import cacheit
-from .compatibility import reduce, as_int, default_sort_key, xrange
-from sympy.mpmath.libmp import mpf_log, prec_to_dps
+from .compatibility import reduce, as_int, default_sort_key, range
+from mpmath.libmp import mpf_log, prec_to_dps
 
 from collections import defaultdict
 
@@ -237,6 +237,8 @@ class Expr(Basic, EvalfMixin):
         for me in (self, other):
             if me.is_complex and me.is_real is False:
                 raise TypeError("Invalid comparison of complex %s" % me)
+            if me is S.NaN:
+                raise TypeError("Invalid NaN comparison")
         if self.is_real and other.is_real:
             dif = self - other
             if dif.is_nonnegative is not None and \
@@ -252,6 +254,8 @@ class Expr(Basic, EvalfMixin):
         for me in (self, other):
             if me.is_complex and me.is_real is False:
                 raise TypeError("Invalid comparison of complex %s" % me)
+            if me is S.NaN:
+                raise TypeError("Invalid NaN comparison")
         if self.is_real and other.is_real:
             dif = self - other
             if dif.is_nonpositive is not None and \
@@ -267,6 +271,8 @@ class Expr(Basic, EvalfMixin):
         for me in (self, other):
             if me.is_complex and me.is_real is False:
                 raise TypeError("Invalid comparison of complex %s" % me)
+            if me is S.NaN:
+                raise TypeError("Invalid NaN comparison")
         if self.is_real and other.is_real:
             dif = self - other
             if dif.is_positive is not None and \
@@ -282,6 +288,8 @@ class Expr(Basic, EvalfMixin):
         for me in (self, other):
             if me.is_complex and me.is_real is False:
                 raise TypeError("Invalid comparison of complex %s" % me)
+            if me is S.NaN:
+                raise TypeError("Invalid NaN comparison")
         if self.is_real and other.is_real:
             dif = self - other
             if dif.is_negative is not None and \
@@ -369,7 +377,7 @@ class Expr(Basic, EvalfMixin):
                            for zi in free])))
             try:
                 nmag = abs(self.evalf(2, subs=reps))
-            except TypeError:
+            except (ValueError, TypeError):
                 # if an out of range value resulted in evalf problems
                 # then return None -- XXX is there a way to know how to
                 # select a good random number for a given expression?
@@ -388,7 +396,7 @@ class Expr(Basic, EvalfMixin):
             # increase the precision up to the default maximum
             # precision to see if we can get any significance
 
-            from sympy.mpmath.libmp.libintmath import giant_steps
+            from mpmath.libmp.libintmath import giant_steps
             from sympy.core.evalf import DEFAULT_MAXPREC as target
 
             # evaluate
@@ -663,6 +671,10 @@ class Expr(Basic, EvalfMixin):
         if failing_expression:
             return diff
         return None
+
+    def _eval_is_composite(self):
+        if self.is_integer and self.is_positive and self.is_prime is False:
+            return True
 
     def _eval_is_positive(self):
         from sympy.polys.numberfields import minimal_polynomial
@@ -1201,7 +1213,7 @@ class Expr(Basic, EvalfMixin):
             if not l1 or not l2:
                 return []
             n = min(len(l1), len(l2))
-            for i in xrange(n):
+            for i in range(n):
                 if l1[i] != l2[i]:
                     return l1[:i]
             return l1[:]
@@ -1226,7 +1238,7 @@ class Expr(Basic, EvalfMixin):
             if not first:
                 l.reverse()
                 sub.reverse()
-            for i in xrange(0, len(l) - n + 1):
+            for i in range(0, len(l) - n + 1):
                 if all(l[i + j] == sub[j] for j in range(n)):
                     break
             else:
@@ -1297,7 +1309,7 @@ class Expr(Basic, EvalfMixin):
                 if ii is not None:
                     if not right:
                         gcdc = co[0][0]
-                        for i in xrange(1, len(co)):
+                        for i in range(1, len(co)):
                             gcdc = gcdc.intersection(co[i][0])
                             if not gcdc:
                                 break
@@ -2404,7 +2416,9 @@ class Expr(Basic, EvalfMixin):
         from sympy import collect
         if x is None:
             syms = self.atoms(C.Symbol)
-            if len(syms) > 1:
+            if not syms:
+                return self
+            elif len(syms) > 1:
                 raise ValueError('x must be given for multivariate functions.')
             x = syms.pop()
 
@@ -3070,9 +3084,15 @@ class Expr(Basic, EvalfMixin):
         if dps is not None and allow > dps:
             allow = dps
         mag = Pow(10, p)  # magnitude needed to bring digit p to units place
+        xwas = x
         x += 1/(2*mag)  # add the half for rounding
         i10 = 10*mag*x.n((dps if dps is not None else digits_needed) + 1)
-        rv = Integer(i10)//10
+        if i10.is_negative:
+            x = xwas - 1/(2*mag)  # should have gone the other way
+            i10 = 10*mag*x.n((dps if dps is not None else digits_needed) + 1)
+            rv = -(Integer(-i10)//10)
+        else:
+            rv = Integer(i10)//10
         q = 1
         if p > 0:
             q = mag
@@ -3150,7 +3170,7 @@ def _mag(x):
 from .mul import Mul
 from .add import Add
 from .power import Pow
-from .function import Derivative, expand_mul, Function
+from .function import Derivative, Function
 from .mod import Mod
 from .exprtools import factor_terms
 from .numbers import Integer, Rational
